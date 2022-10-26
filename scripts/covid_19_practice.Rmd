@@ -1,0 +1,54 @@
+---
+title: "covid_19_practice"
+author: "Lang Liu"
+date: "12/10/2022"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+df <- read_csv("../US_counties_COVID19_health_weather_data_trimmed.csv")
+```
+
+```{r}
+#select columns of interest
+keep <- c("date","county","state","cases","deaths","total_population")
+df_sub <- df %>% select(keep)
+```
+
+```{r}
+#remove missing values
+df_sub %>% summarise_all(~sum(is.na(.)))
+df_sub <- df_sub %>% drop_na(deaths,total_population)
+#discover the data in state Texas
+df_sub %>% 
+  filter(state=="Texas") %>% 
+  arrange(county)
+```
+
+```{r}
+#calculate total population in texas
+total_texas <- df_sub %>% 
+  filter(state=="Texas") %>% 
+  arrange(county) %>% 
+  distinct(county,.keep_all=TRUE) %>% 
+  group_by(state) %>% 
+  summarise(total_texas = sum(total_population)) %>% 
+  select(total_texas)
+total_texas
+total_texas = total_texas$total_texas
+```
+
+```{r}
+#Normalize the data with total population of Texas
+#sort the data by date
+df_sub %>% 
+  filter(state=="Texas") %>% 
+  group_by(date) %>% 
+  select(date,cases,deaths) %>% 
+  summarise_all(list(total=sum)) %>% 
+  mutate(cases_rate = cases_total/total_texas, death_rate = deaths_total/total_texas) %>% 
+  arrange(date)
+  
+```
+

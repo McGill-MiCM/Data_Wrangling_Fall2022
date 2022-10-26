@@ -1,0 +1,194 @@
+---
+title: "MiCM_data_wrangling_workshop"
+author: "Lang Liu"
+date: "10/10/2022"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+data(iris)
+iris
+```
+
+```{r}
+library(tibble)
+iris_tibble = as_tibble(iris)
+head(iris_tibble)
+```
+
+```{r}
+class(iris_tibble)
+class(iris)
+iris$workshop
+iris_tibble$workshop
+```
+
+```{r}
+iris_tibble %>% summarise_all(~(sum(is.na(.))))
+```
+
+
+```{r}
+#readr
+df <- read_csv("../breast_cancer1.csv")
+path = "../breast_cancer_new.csv"
+write_csv(df,path)
+```
+```{r}
+#dplyr
+#filter
+#these three expression are equivalent
+filter(iris_tibble,Sepal.Length > 4)
+iris_tibble %>% filter(Sepal.Length > 4)
+iris_tibble[iris_tibble$Sepal.Length > 4,]
+```
+```{r}
+#select
+select(iris_tibble,Species,Sepal.Length)
+iris_tibble %>% select(Species,Sepal.Length)
+iris_tibble[,c("Species","Sepal.Length")]
+```
+```{r}
+#slice
+slice(iris_tibble,1:3)
+iris_tibble %>% slice(1:3)
+iris_tibble[c(1:3),]
+```
+```{r}
+#mutate
+mutate(iris_tibble,Sepal = Sepal.Length + Sepal.Width)
+iris_tibble %>% mutate(Sepal = Sepal.Length + Sepal.Width)
+iris_tibble["Sepal"] =  iris_tibble$Sepal.Length + iris_tibble$Sepal.Width
+```
+```{r}
+#all together
+mutate(slice(select(filter(iris_tibble,Sepal.Length > 4),Species,Sepal.Length,Sepal.Width),1:3),Sepal = Sepal.Length + Sepal.Width)
+
+iris_tibble %>% 
+  filter(Sepal.Length > 4) %>% 
+  select(Species,Sepal.Length,Sepal.Width) %>% 
+  slice(1:3) %>% 
+  mutate(Sepal = Sepal.Length + Sepal.Width)
+```
+```{r}
+#summarise
+iris_tibble %>% 
+  filter(Sepal.Length > 4) %>% 
+  select(Species,Sepal.Length,Sepal.Width) %>% 
+  slice(1:3) %>% 
+  mutate(Sepal = Sepal.Length + Sepal.Width) %>% 
+  summarise(sum_length = sum(Sepal.Length),sum_width = sum(Sepal.Width),sum_sepal = sum(Sepal))
+```
+```{r}
+#summarise_all
+iris_tibble %>% 
+  filter(Sepal.Length > 4) %>% 
+  select(Species,Sepal.Length,Sepal.Width) %>% 
+  slice(1:3) %>% 
+  mutate(Sepal = Sepal.Length + Sepal.Width) %>% 
+  select(Sepal.Length,Sepal.Width,Sepal) %>% 
+  summarise_all(list(total=sum))
+```
+```{r}
+#group_by
+iris_tibble %>% 
+  group_by(Species) %>% 
+  summarise_all(list(avg = mean,total = sum))
+```
+```{r}
+iris_tibble %>% 
+  group_by(Species) %>% 
+  summarise_all(list(avg = mean,total = sum)) %>% 
+  arrange(Sepal.Width_avg)
+```
+
+```{r}
+#pivot_longer
+#cols selects columns that will go into the rows
+#names_to names the columns of the new column
+#values_to defines the column name of values associated with selected columns
+iris_tibble %>% 
+  group_by(Species) %>% 
+  summarise_all(list(avg = mean,total = sum)) %>% 
+  pivot_longer(cols = !Species,names_to = "measure", values_to = "value")
+```
+```{r}
+#another way to select columns
+iris_tibble %>% 
+  group_by(Species) %>% 
+  summarise_all(list(avg = mean,total = sum)) %>% 
+  pivot_longer(cols = contains("_"),names_to = "measure", values_to = "value")
+```
+
+
+
+```{r}
+#pivot_wider()
+#id_col selects the column that is repetitive
+#names_from selects column associated with id_col
+#values_from select values 
+iris_tibble %>% 
+  group_by(Species) %>% 
+  summarise_all(list(avg = mean,total = sum)) %>% 
+  pivot_longer(cols = contains("_"),names_to = "measure", values_to = "value") %>%
+  pivot_wider(id_col = measure, names_from = Species, values_from = value)
+```
+```{r}
+#another example of pivot_wider
+df <- data.frame(player=rep(c('A', 'B'), each=2),
+                 stat=rep(c('points', 'assists'), times=2),
+                 amount=c(14, 6, 18, 7))
+df %>% pivot_wider(id_cols = player, names_from = stat, values_from = amount)
+df %>% pivot_wider(id_cols = stat, names_from = player, values_from = amount)
+
+```
+```{r}
+#missing values detection
+x <- c(1,NA,2)
+is.na(x)
+sum(is.na(x))
+iris_tibble %>% summarise_all(~sum(is.na(.)))
+```
+```{r}
+df <- data.frame(player=rep(c('A', 'B'), each=2),
+                 stat=rep(c('points', 'assists'), times=2),
+                 amount=c(14,NA, 18, NA))
+df %>% summarise_all(~sum(is.na(.)))
+#drop_na
+df %>% drop_na(amount)
+#fill
+df %>% fill(amount)
+df %>% fill(amount,.direction="up")
+#replace_na
+df$amount %>% replace_na(999)
+```
+
+```{r}
+#union
+a1 <- data.frame(a = 1:5, b=letters[1:5])
+a2 <- data.frame(a = 1:3, b=letters[1:3])
+#INNER JOIN
+merge(a1,a2,by="a",all=FALSE)
+#OUTET JOIN
+merge(a1,a2,by="a",all=TRUE)
+#LEFT JOIN
+merge(a1,a2,by="a",all.x=TRUE)
+#RIGHT JOIN
+merge(a1,a2,by="a",all.y=TRUE)
+
+#dplyr 
+#difference
+a1 %>% anti_join(a2,by = "a")
+a1 %>% semi_join(a2,by = 'a')
+a2 %>% anti_join(a1,by = "a")
+```
+
+
+
+
+
+

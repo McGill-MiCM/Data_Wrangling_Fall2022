@@ -1,0 +1,67 @@
+---
+title: "breast_cancer_practice"
+author: "Lang Liu"
+date: "12/10/2022"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+df1 <- read_csv("../breast_cancer1.csv")
+df2 <- read_csv("../breast_cancer2.csv")
+code <- read_tsv("../GPL570.annot",skip=27)
+```
+
+```{r}
+df1 %>% head()
+df2 %>% head()
+code %>% head()
+```
+```{r}
+#Merge breast_cancer1 and breast_cancer2
+df <- merge(df1,df2,by = c("samples"))
+#first way to avoid duplicate columns 
+#df <- merge(df1,df2,by = c("samples","type"))
+
+
+
+#second way to avoid duplicate columns
+#colnames(df[df %>% colnames() %>% str_detect("y")])#detect if a column is duplicated when merging
+df <- df %>% select(-c("type.y")) %>% rename(type = type.x) #deselct the column and rename the type
+```
+
+
+
+
+```{r}
+#Replace the probe name with gene symbol in GPL570.annot
+code_sub <- code %>% select(ID, "Gene symbol")
+df_columns <- tibble(ID=colnames(df)[-c(1:2)])
+df_code <- merge(df_columns,code_sub,by = "ID",sort=FALSE)
+#NA present in gene symbols
+df_code %>% summarise_all(~sum(is.na(.)))
+df_code %>% filter(is.na(df_code$`Gene symbol`))
+#replace these missing values with IDs
+df_code <- df_code %>% 
+  mutate(`Gene symbol` = ifelse(is.na(df_code$`Gene symbol`),
+                                      df_code$ID,df_code$`Gene symbol`))
+
+#check if missing values are present again
+df_code %>% summarise_all(~sum(is.na(.)))
+#rename the columns
+colnames(df)[3:length(colnames(df))] <- df_code[,2]
+```
+
+
+```{r}
+#get top 10 genes that are expressed the highest in basal type
+df %>% 
+  group_by(type) %>% 
+  select(-samples) %>% 
+  summarise_all(list(avg=mean)) %>% 
+  pivot_longer(cols = !type,names_to = 'gene') %>% 
+  pivot_wider(id_cols = gene, names_from=type) %>% 
+  arrange(desc(basal)) %>% 
+  slice(1:10) %>% 
+  select(gene,basal)
+```
